@@ -31,9 +31,13 @@ import (
 	"github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/contracts/release"
 	"github.com/ethereum/go-ethereum/eth"
+	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/node"
+	"github.com/ethereum/go-ethereum/p2p/discover"
 	"github.com/ethereum/go-ethereum/params"
+	"github.com/ethereum/go-ethereum/raft"
 	"github.com/naoina/toml"
+	"time"
 )
 
 var (
@@ -136,7 +140,47 @@ func makeConfigNode(ctx *cli.Context) (*node.Node, gethConfig) {
 func makeFullNode(ctx *cli.Context) *node.Node {
 	stack, cfg := makeConfigNode(ctx)
 
-	utils.RegisterEthService(stack, &cfg.Eth)
+	ethereum := utils.RegisterEthService(stack, &cfg.Eth)
+
+	if ctx.GlobalBool(utils.RaftModeFlag.Name) {
+		blockTimeMillis := ctx.GlobalInt(utils.RaftBlockTimeFlag.Name)
+		datadir := ctx.GlobalString(utils.DataDirFlag.Name)
+		joinExistingId := ctx.GlobalInt(utils.RaftJoinExistingFlag.Name)
+
+		if err := stack.Register(func(ctx *node.ServiceContext) (node.Service, error) {
+			log.Warn("how to get priv key?", "p2p", cfg.Node.P2P)
+			log.Warn("how to get priv key?", "privkey", cfg.Node.P2P.PrivateKey)
+			pubkey := cfg.Node.P2P.PrivateKey.PublicKey
+			strId := discover.PubkeyID(&pubkey).String()
+			blockTimeNanos := time.Duration(blockTimeMillis) * time.Millisecond
+			peers := cfg.Node.StaticNodes()
+
+			var myId uint16
+			var joinExisting bool
+
+			if joinExistingId > 0 {
+				myId = uint16(joinExistingId)
+				joinExisting = true
+			} else {
+				peerIds := make([]string, len(peers))
+				for peerIdx, peer := range peers {
+					peerId := peer.ID.String()
+					peerIds[peerIdx] = peerId
+					if peerId == strId {
+						myId = uint16(peerIdx) + 1
+					}
+				}
+
+				if myId == 0 {
+					utils.Fatalf("failed to find local enode ID (%v) amongst peer IDs: %v", strId, peerIds)
+				}
+			}
+
+			return raft.New(ctx, params.TestChainConfig, myId, joinExisting, blockTimeNanos, ethereum, peers, datadir)
+		}); err != nil {
+			utils.Fatalf("Failed to register the Raft service: %v", err)
+		}
+	}
 
 	// Whisper must be explicitly enabled, but is auto-enabled in --dev mode.
 	shhEnabled := ctx.GlobalBool(utils.WhisperEnabledFlag.Name)
