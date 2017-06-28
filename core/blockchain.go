@@ -111,8 +111,8 @@ type BlockChain struct {
 
 	badBlocks *lru.Cache // Bad block cache
 
-	privateStateCache *state.StateDB // Private state database to reuse between imports (contains state cache)
-	chainEvents       chan interface{}
+	privateStateCache *state.StateDB   // Private state database to reuse between imports (contains state cache)
+	chainEvents       chan interface{} // Serialized chain insertion events
 }
 
 // NewBlockChain returns a fully initialised block chain using information
@@ -137,6 +137,8 @@ func NewBlockChain(chainDb ethdb.Database, config *params.ChainConfig, engine co
 		engine:       engine,
 		vmConfig:     vmConfig,
 		badBlocks:    badBlocks,
+
+		chainEvents: make(chan interface{}, 20), // Buffered for async publishing
 	}
 	bc.SetValidator(NewBlockValidator(config, bc, engine))
 	bc.SetProcessor(NewStateProcessor(config, bc, engine))
