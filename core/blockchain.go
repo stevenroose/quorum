@@ -92,7 +92,7 @@ type BlockChain struct {
 	currentBlock     *types.Block // Current head of the block chain
 	currentFastBlock *types.Block // Current head of the fast-sync chain (may be above the block chain!)
 
-	publicStateCache   *state.StateDB // State database to reuse between imports (contains state cache)
+	stateCache   *state.StateDB // State database to reuse between imports (contains state cache)
 	bodyCache    *lru.Cache     // Cache for the most recent block bodies
 	bodyRLPCache *lru.Cache     // Cache for the most recent block bodies in RLP encoded format
 	blockCache   *lru.Cache     // Cache for the most recent entire blocks
@@ -223,7 +223,7 @@ func (bc *BlockChain) loadLastState() error {
 	if err != nil {
 		return err
 	}
-	bc.publicStateCache = statedb
+	bc.stateCache = statedb
 
 	// Initialize a statedb cache to ensure singleton account bloom filter generation
 	bc.privateStateCache, err = state.New(GetPrivateStateRoot(bc.chainDb, bc.currentBlock.Hash()), bc.chainDb)
@@ -398,7 +398,7 @@ func (bc *BlockChain) State() (*state.StateDB, *state.StateDB, error) {
 
 // StateAt returns a new mutable state based on a particular point in time.
 func (bc *BlockChain) StateAt(root common.Hash) (*state.StateDB, *state.StateDB, error) {
-	publicStateDb, publicStateDbErr := bc.publicStateCache.New(root)
+	publicStateDb, publicStateDbErr := bc.stateCache.New(root)
 	if publicStateDbErr != nil {
 		return nil, nil, publicStateDbErr
 	}
@@ -984,9 +984,9 @@ func (bc *BlockChain) InsertChain(chain types.Blocks) (int, error) {
 		// error if it fails.
 		switch {
 		case i == 0:
-			err = bc.publicStateCache.Reset(bc.GetBlock(block.ParentHash(), block.NumberU64()-1).Root())
+			err = bc.stateCache.Reset(bc.GetBlock(block.ParentHash(), block.NumberU64()-1).Root())
 		default:
-			err = bc.publicStateCache.Reset(chain[i-1].Root())
+			err = bc.stateCache.Reset(chain[i-1].Root())
 		}
 		if err != nil {
 			bc.reportBlock(block, nil, err)
@@ -1007,19 +1007,19 @@ func (bc *BlockChain) InsertChain(chain types.Blocks) (int, error) {
 			return i, err
 		}
 		// Process block using the parent state as reference point.
-		receipts, privateReceipts, logs, usedGas, err := bc.processor.Process(block, bc.publicStateCache, bc.privateStateCache, bc.vmConfig)
+		receipts, privateReceipts, logs, usedGas, err := bc.processor.Process(block, bc.stateCache, bc.privateStateCache, bc.vmConfig)
 		if err != nil {
 			bc.reportBlock(block, receipts, err)
 			return i, err
 		}
 		// Validate the state using the default validator
-		err = bc.Validator().ValidateState(block, bc.GetBlock(block.ParentHash(), block.NumberU64()-1), bc.publicStateCache, receipts, usedGas)
+		err = bc.Validator().ValidateState(block, bc.GetBlock(block.ParentHash(), block.NumberU64()-1), bc.stateCache, receipts, usedGas)
 		if err != nil {
 			bc.reportBlock(block, receipts, err)
 			return i, err
 		}
 		// Write state changes to database
-		_, err = bc.publicStateCache.Commit(bc.config.IsEIP158(block.Number()))
+		_, err = bc.stateCache.Commit(bc.config.IsEIP158(block.Number()))
 		if err != nil {
 			return i, err
 		}
@@ -1068,7 +1068,7 @@ func (bc *BlockChain) InsertChain(chain types.Blocks) (int, error) {
 				return i, err
 			}
 			// Write hash preimages
-			if err := WritePreimages(bc.chainDb, block.NumberU64(), bc.publicStateCache.Preimages()); err != nil {
+			if err := WritePreimages(bc.chainDb, block.NumberU64(), bc.stateCache.Preimages()); err != nil {
 				return i, err
 			}
 			// Write private block bloom
