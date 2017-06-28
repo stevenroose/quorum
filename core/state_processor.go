@@ -138,7 +138,7 @@ func ApplyTransaction(config *params.ChainConfig, bc *BlockChain, author *common
 
 	var privateReceipt *types.Receipt
 	if tx.IsPrivate() {
-		privateReceipt = types.NewReceipt(privateState.IntermediateRoot(true).Bytes(), usedGas)
+		privateReceipt = types.NewReceipt(privateState.IntermediateRoot(config.IsEIP158(header.Number)).Bytes(), usedGas)
 		privateReceipt.TxHash = tx.Hash()
 		privateReceipt.GasUsed = new(big.Int).Set(gas)
 		privateReceipt.ContractAddress = crypto.CreateAddress(vmenv.Context.Origin, tx.Nonce())
