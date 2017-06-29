@@ -39,17 +39,13 @@ var (
 	headBlockKey  = []byte("LastBlock")
 	headFastKey   = []byte("LastFast")
 
-	headerPrefix               = []byte("h")   // headerPrefix + num (uint64 big endian) + hash -> header
-	tdSuffix                   = []byte("t")   // headerPrefix + num (uint64 big endian) + hash + tdSuffix -> td
-	numSuffix                  = []byte("n")   // headerPrefix + num (uint64 big endian) + numSuffix -> hash
-	blockHashPrefix            = []byte("H")   // blockHashPrefix + hash -> num (uint64 big endian)
-	bodyPrefix                 = []byte("b")   // bodyPrefix + num (uint64 big endian) + hash -> block body
-	blockReceiptsPrefix        = []byte("r")   // blockReceiptsPrefix + num (uint64 big endian) + hash -> block receipts
-	preimagePrefix             = "secure-key-" // preimagePrefix + hash -> preimage
-	privateRootPrefix          = []byte("P")
-	privateblockReceiptsPrefix = []byte("Pr") // blockReceiptsPrefix + num (uint64 big endian) + hash -> block receipts
-	privateReceiptPrefix       = []byte("Prs")
-	privateBloomPrefix         = []byte("Pb")
+	headerPrefix        = []byte("h")   // headerPrefix + num (uint64 big endian) + hash -> header
+	tdSuffix            = []byte("t")   // headerPrefix + num (uint64 big endian) + hash + tdSuffix -> td
+	numSuffix           = []byte("n")   // headerPrefix + num (uint64 big endian) + numSuffix -> hash
+	blockHashPrefix     = []byte("H")   // blockHashPrefix + hash -> num (uint64 big endian)
+	bodyPrefix          = []byte("b")   // bodyPrefix + num (uint64 big endian) + hash -> block body
+	blockReceiptsPrefix = []byte("r")   // blockReceiptsPrefix + num (uint64 big endian) + hash -> block receipts
+	preimagePrefix      = "secure-key-" // preimagePrefix + hash -> preimage
 
 	txMetaSuffix   = []byte{0x01}
 	receiptsPrefix = []byte("receipts-")
@@ -74,6 +70,11 @@ var (
 
 	preimageCounter    = metrics.NewCounter("db/preimage/total")
 	preimageHitCounter = metrics.NewCounter("db/preimage/hits")
+
+	privateRootPrefix          = []byte("P")
+	privateblockReceiptsPrefix = []byte("Pr") // blockReceiptsPrefix + num (uint64 big endian) + hash -> block receipts
+	privateReceiptPrefix       = []byte("Prs")
+	privateBloomPrefix         = []byte("Pb")
 )
 
 // encodeBlockNumber encodes a block number as big endian uint64
