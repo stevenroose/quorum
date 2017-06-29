@@ -100,7 +100,7 @@ func ApplyTransaction(config *params.ChainConfig, bc *BlockChain, author *common
 		privateState = publicState
 	}
 
-	if tx.GasPrice() != nil && tx.GasPrice().Cmp(common.Big0) > 0 {
+	if tx.GasPrice() != nil && tx.GasPrice().Cmp(common.Big0) > 0 && !params.IsQuorum {
 		return nil, nil, nil, ErrInvalidGasPrice
 	}
 
