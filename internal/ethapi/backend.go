@@ -47,7 +47,7 @@ type Backend interface {
 	SetHead(number uint64)
 	HeaderByNumber(ctx context.Context, blockNr rpc.BlockNumber) (*types.Header, error)
 	BlockByNumber(ctx context.Context, blockNr rpc.BlockNumber) (*types.Block, error)
-	StateAndHeaderByNumber(ctx context.Context, blockNr rpc.BlockNumber) (vm.MinimalApiState, *types.Header, error)
+	StateByNumber(ctx context.Context, blockNr rpc.BlockNumber) (vm.MinimalApiState, error)
 	GetBlock(ctx context.Context, blockHash common.Hash) (*types.Block, error)
 	GetReceipts(ctx context.Context, blockHash common.Hash) (types.Receipts, error)
 	GetTd(blockHash common.Hash) *big.Int

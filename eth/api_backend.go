@@ -85,28 +85,31 @@ func (b *EthApiBackend) BlockByNumber(ctx context.Context, blockNr rpc.BlockNumb
 	return b.eth.blockchain.GetBlockByNumber(uint64(blockNr)), nil
 }
 
-func (b *EthApiBackend) StateAndHeaderByNumber(ctx context.Context, blockNr rpc.BlockNumber) (vm.MinimalApiState, *types.Header, error) {
-	// Pending state is only known by the miner
+func (b *EthApiBackend) StateByNumber(ctx context.Context, blockNr rpc.BlockNumber) (vm.MinimalApiState, error) {
+	blockHash := b.eth.blockchain.GetBlockHashByNumber(uint64(blockNr))
+
+	// The pending state can be retrieved from the tx pool.
 	if blockNr == rpc.PendingBlockNumber {
 		if b.eth.protocolManager.raftMode {
 			// Use latest instead.
-			header, err := b.HeaderByNumber(ctx, rpc.LatestBlockNumber)
-			if header == nil || err != nil {
-				return nil, nil, err
-			}
-			publicState, privateState, err := b.eth.BlockChain().StateAt(header.Root)
-			return EthApiState{publicState, privateState}, header, err
+			stateDb, privateState, err := b.eth.BlockChain().StateAt(blockHash)
+			return EthApiState{stateDb, privateState}, err
 		}
-		block, publicState, privateState := b.eth.miner.Pending()
-		return EthApiState{publicState, privateState}, block.Header(), nil
+
+		stateDb := b.eth.TxPool().State().StateDB
+		//TODO txpool doesn't seem to have a private state.
+		_, privateState, err := b.eth.BlockChain().StateAt(blockHash)
+		return EthApiState{stateDb, privateState}, err
 	}
+
 	// Otherwise resolve the block number and return its state
-	header, err := b.HeaderByNumber(ctx, blockNr)
-	if header == nil || err != nil {
-		return nil, nil, err
+	if blockNr == rpc.LatestBlockNumber {
+		stateDb, privateState, err := b.eth.BlockChain().State()
+		return EthApiState{stateDb, privateState}, err
 	}
-	stateDb, privateState, err := b.eth.BlockChain().StateAt(header.Root)
-	return EthApiState{stateDb, privateState}, header, err
+
+	stateDb, privateState, err := b.eth.BlockChain().StateAt(blockHash)
+	return EthApiState{stateDb, privateState}, err
 }
 
 func (b *EthApiBackend) GetBlock(ctx context.Context, blockHash common.Hash) (*types.Block, error) {
